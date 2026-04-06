@@ -5,64 +5,28 @@ Description: >
   2) Delete snapshots older than 30 days
   3) Migrate GP2 volumes to GP3
 
-Parameters:
-  UseAWSLambdaBasicExecutionRole:
-    Type: String
-    Description: >
-      Set to "true" if the AWS managed policy AWSLambdaBasicExecutionRole is
-      available in the account. Set to "false" to create an inline CloudWatch
-      Logs policy instead.
-    Default: "true"
-    AllowedValues:
-      - "true"
-      - "false"
-
-Conditions:
-  HasManagedLogsPolicy: !Equals [!Ref UseAWSLambdaBasicExecutionRole, "true"]
-
 Resources:
 
   #############################################################################
-  # IAM Role for Lambda
+  # IAM Policy — attach EC2 permissions to the existing Lambda execution role
   #############################################################################
-  EBSMaintenanceLambdaRole:
-    Type: AWS::IAM::Role
+  EBSMaintenancePolicy:
+    Type: AWS::IAM::Policy
     Properties:
-      RoleName: ebs-maintenance-lambda-role
-      AssumeRolePolicyDocument:
+      PolicyName: EBSMaintenancePolicy
+      Roles:
+        - customer_lambda_basic_execution_role
+      PolicyDocument:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        !If
-          - HasManagedLogsPolicy
-          - - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-          - !Ref "AWS::NoValue"
-      Policies:
-        - PolicyName: EBSMaintenancePolicy
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - !If
-                - HasManagedLogsPolicy
-                - !Ref "AWS::NoValue"
-                - Effect: Allow
-                  Action:
-                    - logs:CreateLogGroup
-                    - logs:CreateLogStream
-                    - logs:PutLogEvents
-                  Resource: "arn:aws:logs:*:*:*"
-              - Effect: Allow
-                Action:
-                  - ec2:DescribeVolumes
-                  - ec2:DeleteVolume
-                  - ec2:DescribeSnapshots
-                  - ec2:DeleteSnapshot
-                  - ec2:ModifyVolume
-                Resource: "*"
+            Action:
+              - ec2:DescribeVolumes
+              - ec2:DeleteVolume
+              - ec2:DescribeSnapshots
+              - ec2:DeleteSnapshot
+              - ec2:ModifyVolume
+            Resource: "*"
 
   #############################################################################
   # Lambda Function
@@ -78,7 +42,7 @@ Resources:
       Handler: index.handler
       Timeout: 300
       MemorySize: 256
-      Role: !GetAtt EBSMaintenanceLambdaRole.Arn
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/customer_lambda_basic_execution_role"
       Environment:
         Variables:
           REGION: us-east-1
