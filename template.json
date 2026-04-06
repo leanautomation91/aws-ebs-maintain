@@ -2,31 +2,6 @@
   "AWSTemplateFormatVersion": "2010-09-09",
   "Description": "Scheduled Lambda function that runs every Friday at 8 PM EST to: 1) Delete unattached EBS volumes 2) Delete snapshots older than 30 days 3) Migrate GP2 volumes to GP3",
   "Resources": {
-    "EBSMaintenancePolicy": {
-      "Type": "AWS::IAM::Policy",
-      "Properties": {
-        "PolicyName": "EBSMaintenancePolicy",
-        "Roles": [
-          "customer_lambda_basic_execution_role"
-        ],
-        "PolicyDocument": {
-          "Version": "2012-10-17",
-          "Statement": [
-            {
-              "Effect": "Allow",
-              "Action": [
-                "ec2:DescribeVolumes",
-                "ec2:DeleteVolume",
-                "ec2:DescribeSnapshots",
-                "ec2:DeleteSnapshot",
-                "ec2:ModifyVolume"
-              ],
-              "Resource": "*"
-            }
-          ]
-        }
-      }
-    },
     "EBSMaintenanceLambda": {
       "Type": "AWS::Lambda::Function",
       "Properties": {
