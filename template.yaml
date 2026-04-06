@@ -5,6 +5,21 @@ Description: >
   2) Delete snapshots older than 30 days
   3) Migrate GP2 volumes to GP3
 
+Parameters:
+  UseAWSLambdaBasicExecutionRole:
+    Type: String
+    Description: >
+      Set to "true" if the AWS managed policy AWSLambdaBasicExecutionRole is
+      available in the account. Set to "false" to create an inline CloudWatch
+      Logs policy instead.
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+
+Conditions:
+  HasManagedLogsPolicy: !Equals [!Ref UseAWSLambdaBasicExecutionRole, "true"]
+
 Resources:
 
   #############################################################################
@@ -22,12 +37,24 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        !If
+          - HasManagedLogsPolicy
+          - - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+          - !Ref "AWS::NoValue"
       Policies:
         - PolicyName: EBSMaintenancePolicy
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
+              - !If
+                - HasManagedLogsPolicy
+                - !Ref "AWS::NoValue"
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource: "arn:aws:logs:*:*:*"
               - Effect: Allow
                 Action:
                   - ec2:DescribeVolumes
